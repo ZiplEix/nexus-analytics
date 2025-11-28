@@ -1,6 +1,18 @@
 # Nexus Analytics
 
-**Nexus Analytics** is a real-time League of Legends tactical assistant. It uses the local Live Client Data API to analyze your game state (Gold, XP, Items, KDA) and uses Google Gemini AI to provide immediate, challenger-level tactical advice.
+<div align="center">
+  <img src="static/logo.png" alt="Nexus Analytics Logo" width="120">
+  <br>
+  <b>Real-time League of Legends Tactical Assistant</b>
+</div>
+
+<br>
+
+<div align="center">
+  <img src="img/tool-example.png" alt="Nexus Analytics Dashboard" width="800">
+</div>
+
+**Nexus Analytics** uses the local Live Client Data API to analyze your game state (Gold, XP, Items, KDA) and uses Google Gemini AI to provide immediate, challenger-level tactical advice.
 
 ## Features
 
