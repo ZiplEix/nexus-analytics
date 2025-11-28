@@ -1,0 +1,12 @@
+services:
+  nexus-analytics:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - WINDOWS_HOST=host.docker.internal
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - .:/app

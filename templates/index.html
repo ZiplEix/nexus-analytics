@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Analytics</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+
+    <!-- Custom Hextech Theme Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        hextech: {
+                            gold: '#C8AA6E',
+                            blue: '#0AC8B9',
+                            dark: '#091428',
+                            darker: '#0A0A0C',
+                            border: '#785A28'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Beaufort for LOL', 'Arial', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+
+        body {
+            background-color: #091428;
+            background-image: radial-gradient(circle at center, #0A323C 0%, #091428 100%);
+            color: #F0E6D2;
+            font-family: 'Roboto', sans-serif;
+        }
+
+        .hextech-border {
+            border: 2px solid #C8AA6E;
+            box-shadow: 0 0 15px rgba(200, 170, 110, 0.3);
+            position: relative;
+        }
+
+        .hextech-border::before {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: -5px;
+            right: -5px;
+            bottom: -5px;
+            border: 1px solid #0AC8B9;
+            pointer-events: none;
+            opacity: 0.5;
+        }
+
+        .markdown-prose h1 {
+            font-size: 1.5em;
+            color: #C8AA6E;
+            margin-bottom: 0.5em;
+        }
+
+        .markdown-prose h2 {
+            font-size: 1.25em;
+            color: #0AC8B9;
+            margin-bottom: 0.5em;
+        }
+
+        .markdown-prose ul {
+            list-style-type: disc;
+            padding-left: 1.5em;
+            margin-bottom: 1em;
+        }
+
+        .markdown-prose li {
+            margin-bottom: 0.25em;
+        }
+
+        .markdown-prose strong {
+            color: #F0E6D2;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- Header -->
+    <header class="mb-10 text-center animate-fade-in-down">
+        <div class="flex items-center justify-center gap-4 mb-4">
+            <img src="/static/logo.png" alt="Nexus Logo" class="h-12 w-12 drop-shadow-[0_0_10px_rgba(200,155,60,0.8)]">
+            <div>
+                <h1
+                    class="text-3xl font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-hextech-gold to-hextech-blue">
+                    NEXUS ANALYTICS</h1>
+                <div class="flex items-center space-x-2 justify-center">
+                    <span class="text-xs text-hextech-metal uppercase tracking-widest">Système d'analyse tactique</span>
+                    <span id="gamemode-badge"
+                        class="text-xs px-2 py-0.5 rounded bg-hextech-blue/20 text-hextech-blue border border-hextech-blue/50"
+                        hx-get="/api/gamemode" hx-trigger="load, every 5s" hx-swap="innerHTML">
+                        Detecting...
+                    </span>
+                </div>
+            </div>
+        </div>
+        <p class="text-hextech-blue tracking-widest text-sm uppercase opacity-80">Système d'Analyse Tactique Temps Réel
+        </p>
+    </header>
+
+    <!-- Main Content -->
+    <main class="w-full max-w-3xl">
+        <div class="hextech-border bg-hextech-darker/90 backdrop-blur-sm p-8 rounded-sm">
+
+            <!-- Status Indicator -->
+            <div class="flex justify-between items-center mb-6 border-b border-hextech-border/30 pb-4">
+                <span class="text-hextech-gold uppercase text-xs tracking-wider font-bold">Flux Neural</span>
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                    <span class="text-xs text-green-400">Connecté</span>
+                </div>
+            </div>
+
+            <!-- Advice Container -->
+            <div id="advice-container" class="markdown-prose min-h-[200px] text-lg leading-relaxed" hx-get="/api/advice"
+                hx-trigger="load, every 5s" hx-swap="innerHTML">
+
+                <div class="flex flex-col items-center justify-center h-48 text-hextech-blue/50 animate-pulse">
+                    <svg class="w-12 h-12 mb-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
+                        </circle>
+                        <path class="opacity-75" fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                        </path>
+                    </svg>
+                    <p>En attente du lien neural avec la Faille de l'invocateur...</p>
+                </div>
+
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="mt-12 text-hextech-blue/30 text-xs text-center">
+        <p>Nexus Analytics v1.0.0 • Propulsé par Gemini 2.0 Flash</p>
+    </footer>
+
+</body>
+
+</html>
