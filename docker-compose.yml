@@ -10,3 +10,4 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - .:/app
+      - ./prompt:/app/prompt

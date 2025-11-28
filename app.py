@@ -30,6 +30,7 @@ latest_advice = "En attente du lien neural avec la Faille de l'invocateur..."
 last_gemini_call = 0
 advice_history = []
 current_game_mode = "Unknown"
+debug_mode = False
 
 def prune_data(data):
     """
@@ -92,6 +93,32 @@ def poll_lol_api():
                 game_mode = raw_data.get('gameData', {}).get('gameMode', 'UNKNOWN')
                 current_game_mode = game_mode
                 
+                # Extract Player Info & Teams
+                active_player_name = raw_data.get('activePlayer', {}).get('summonerName', 'Unknown')
+                all_players = raw_data.get('allPlayers', [])
+                
+                my_team = []
+                enemy_team = []
+                my_champion = "Unknown"
+                
+                for p in all_players:
+                    champ = p.get('championName', 'Unknown')
+                    name = p.get('summonerName', '')
+                    team = p.get('team', '')
+                    
+                    if name == active_player_name:
+                        my_champion = champ
+                        my_team_id = team # Capture my team ID
+                        
+                # Second pass to sort teams (now that we know my_team_id)
+                for p in all_players:
+                    champ = p.get('championName', 'Unknown')
+                    team = p.get('team', '')
+                    if team == my_team_id:
+                        my_team.append(champ)
+                    else:
+                        enemy_team.append(champ)
+
                 # Check if we should call Gemini (every 2 minutes)
                 current_time = time.time()
                 if model and (current_time - last_gemini_call > 120):
@@ -102,6 +129,9 @@ def poll_lol_api():
                         prompt = (
                             "Tu es un coach Challenger sur League of Legends. "
                             "Ton but est de donner un avantage tactique immédiat.\n\n"
+                            f"JOUEUR ACTUEL: {my_champion} (Moi)\n"
+                            f"MON ÉQUIPE: {', '.join(my_team)}\n"
+                            f"ÉQUIPE ADVERSE: {', '.join(enemy_team)}\n"
                             f"MODE DE JEU: {game_mode}\n"
                             f"CONTEXTE (Tes précédents conseils): {context_history}\n\n"
                             f"DONNÉES ACTUELLES DE LA PARTIE: {json.dumps(clean_data)}\n\n"
@@ -119,6 +149,24 @@ def poll_lol_api():
                             "<h3>⚔️ Itemisation Recommandée</h3>"
                             "<ul><li><strong>Achat Prioritaire</strong>: Nom de l'item (Pourquoi ?)</li></ul>"
                         )
+                        
+                        # Debug: Save prompt and game data to file
+                        if debug_mode:
+                            try:
+                                os.makedirs("prompt", exist_ok=True)
+                                timestamp = int(time.time())
+                                
+                                # Save Prompt
+                                with open(f"prompt/prompt_{timestamp}.txt", "w", encoding="utf-8") as f:
+                                    f.write(prompt)
+                                
+                                # Save Game Data (JSON)
+                                with open(f"prompt/game_data_{timestamp}.json", "w", encoding="utf-8") as f:
+                                    json.dump(raw_data, f, indent=4)
+                                    
+                                print(f"DEBUG: Saved prompt and game data for timestamp {timestamp}", flush=True)
+                            except Exception as e:
+                                print(f"DEBUG ERROR: Could not save debug files: {e}", flush=True)
                         
                         response = model.generate_content(prompt)
                         if response.text:
@@ -170,4 +218,8 @@ def get_gamemode():
     return current_game_mode
 
 if __name__ == '__main__':
+    import sys
+    if "--debug" in sys.argv:
+        debug_mode = True
+        print("DEBUG MODE ENABLED: Prompts will be saved to ./prompt/", flush=True)
     app.run(host='0.0.0.0', port=5000)
