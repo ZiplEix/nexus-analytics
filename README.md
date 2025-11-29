@@ -37,6 +37,7 @@ The most reliable way to run Nexus Analytics is using Docker, as it handles netw
 2.  **Configure API Key**:
     *   Copy `.env.example` to `.env`.
     *   Open `.env` and paste your `GEMINI_API_KEY`.
+    *   (Optional) Set `GEMINI_MODEL` if you want to use a different model.
 3.  **Enable LoL API**:
     *   Go to your LoL install folder (e.g., `C:\Riot Games\League of Legends\Config`).
     *   Open `game.cfg`.

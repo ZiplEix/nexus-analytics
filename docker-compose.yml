@@ -6,6 +6,7 @@ services:
     environment:
       - WINDOWS_HOST=host.docker.internal
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.0-flash}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:

@@ -18,9 +18,15 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 API_KEY = os.environ.get("GEMINI_API_KEY")
 if API_KEY:
     genai.configure(api_key=API_KEY)
-    model = genai.GenerativeModel('gemini-2.0-flash')
+    model_name = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+    try:
+        model = genai.GenerativeModel(model_name)
+        print(f"Gemini model initialized: {model_name}", flush=True)
+    except Exception as e:
+        print(f"Error initializing Gemini model {model_name}: {e}", flush=True)
+        model = None
 else:
-    print("WARNING: GEMINI_API_KEY not found in environment variables.")
+    print("Error: GEMINI_API_KEY not found in environment variables.", flush=True)
     model = None
 
 app = Flask(__name__)
@@ -32,19 +38,89 @@ advice_history = []
 current_game_mode = "Unknown"
 debug_mode = False
 
+def filter_events(game_data, seconds=120):
+    """
+    Ne conserve que les événements survenus dans les 'seconds' dernières secondes.
+    Si le JSON est incomplet (début de chargement), on le retourne tel quel.
+    """
+    try:
+        # On vérifie que les données nécessaires existent
+        if 'gameData' not in game_data or 'events' not in game_data:
+            return game_data
+            
+        current_time = game_data['gameData']['gameTime']
+        events_list = game_data['events'].get('Events', [])
+        
+        # Filtrage : On garde l'event si (TempsEvent > TempsActuel - 120s)
+        recent_events = [
+            event for event in events_list 
+            if event['EventTime'] > (current_time - seconds)
+        ]
+        
+        # On remplace la liste originale par la version filtrée
+        game_data['events']['Events'] = recent_events
+        return game_data
+
+    except Exception as e:
+        # En cas de structure imprévue, on ne casse pas le programme, on renvoie la data
+        # print(f"Warning filtering events: {e}") 
+        return game_data
+
 def prune_data(data):
     """
-    Recursively removes 'itemDesc', 'perks', 'abilities', 'skins' from the JSON data
-    to save tokens.
+    Nettoie récursivement le JSON pour l'IA.
+    - Supprime les descriptions, skins, IDs internes, et données statiques.
+    - Simplifie drastiquement la liste des items.
     """
+    
+    # Liste noire : Clés à supprimer sans pitié
+    KEYS_TO_REMOVE = {
+        'rawDescription', 'rawDisplayName', 'rawChampionName', 
+        'rawSkinName', 'skinName', 'skinID', 
+        'riotId', 'riotIdGameName', 'riotIdTagLine', 'summonerName', 
+        'fullRunes',  # Trop verbeux, 'runes' simple suffit
+        'abilities',  # L'IA connait déjà les sorts des champions par cœur
+        'summonerSpells' # On garde les spells dans 'allPlayers', mais on vire les détails ici si besoin
+    }
+
     if isinstance(data, dict):
-        return {
-            k: prune_data(v) 
-            for k, v in data.items() 
-            if k not in ['itemDesc', 'perks', 'abilities', 'skins']
-        }
+        new_dict = {}
+        for k, v in data.items():
+            # 1. Si la clé est dans la liste noire, on saute
+            if k in KEYS_TO_REMOVE:
+                continue
+
+            # 2. Optimisation Spéciale : ITEMS
+            # Au lieu de garder tout l'objet item, on garde juste Nom, ID et Nombre
+            if k == 'items' and isinstance(v, list):
+                new_dict[k] = [
+                    {
+                        'id': item.get('itemID'),
+                        'name': item.get('displayName'),
+                        'count': item.get('count'),
+                        'slot': item.get('slot')
+                    }
+                    for item in v
+                ]
+                continue
+            
+            # 3. Optimisation Spéciale : SUMMONER SPELLS
+            # On ne garde que le nom du sort (ex: "Flash"), pas la description
+            if k == 'summonerSpells' and isinstance(v, dict):
+                simplified_spells = {}
+                for spell_key, spell_data in v.items():
+                     simplified_spells[spell_key] = spell_data.get('displayName', 'Unknown')
+                new_dict[k] = simplified_spells
+                continue
+
+            # 4. Récursion standard pour le reste
+            new_dict[k] = prune_data(v)
+            
+        return new_dict
+
     elif isinstance(data, list):
-        return [prune_data(i) for i in data]
+        return [prune_data(item) for item in data]
+
     else:
         return data
 
@@ -87,10 +163,13 @@ def poll_lol_api():
             
             if response.status_code == 200:
                 raw_data = response.json()
-                clean_data = prune_data(raw_data)
+                less_events_data = filter_events(raw_data, seconds=120)
+                clean_data = prune_data(less_events_data)
                 
-                # Extract Game Mode
-                game_mode = raw_data.get('gameData', {}).get('gameMode', 'UNKNOWN')
+                # Extract Game Mode & Time
+                game_data = raw_data.get('gameData', {})
+                game_mode = game_data.get('gameMode', 'UNKNOWN')
+                game_time = game_data.get('gameTime', 0)
                 current_game_mode = game_mode
                 
                 # Extract Player Info & Teams
@@ -100,24 +179,32 @@ def poll_lol_api():
                 my_team = []
                 enemy_team = []
                 my_champion = "Unknown"
+                my_position = "UNKNOWN"
+                direct_opponent = "Inconnu"
                 
                 for p in all_players:
                     champ = p.get('championName', 'Unknown')
                     name = p.get('summonerName', '')
                     team = p.get('team', '')
+                    position = p.get('position', '')
                     
                     if name == active_player_name:
                         my_champion = champ
-                        my_team_id = team # Capture my team ID
+                        my_team_id = team
+                        my_position = position
                         
-                # Second pass to sort teams (now that we know my_team_id)
+                # Second pass to sort teams and find opponent
                 for p in all_players:
                     champ = p.get('championName', 'Unknown')
                     team = p.get('team', '')
+                    position = p.get('position', '')
+                    
                     if team == my_team_id:
                         my_team.append(champ)
                     else:
                         enemy_team.append(champ)
+                        if position == my_position and position != "":
+                            direct_opponent = champ
 
                 # Check if we should call Gemini (every 2 minutes)
                 current_time = time.time()
@@ -126,29 +213,57 @@ def poll_lol_api():
                         # Keep only last 3 advices for context
                         context_history = advice_history[-3:] if advice_history else "Aucun historique."
                         
-                        prompt = (
-                            "Tu es un coach Challenger sur League of Legends. "
-                            "Ton but est de donner un avantage tactique immédiat.\n\n"
-                            f"JOUEUR ACTUEL: {my_champion} (Moi)\n"
-                            f"MON ÉQUIPE: {', '.join(my_team)}\n"
-                            f"ÉQUIPE ADVERSE: {', '.join(enemy_team)}\n"
-                            f"MODE DE JEU: {game_mode}\n"
-                            f"CONTEXTE (Tes précédents conseils): {context_history}\n\n"
-                            f"DONNÉES ACTUELLES DE LA PARTIE: {json.dumps(clean_data)}\n\n"
-                            "INSTRUCTIONS:"
-                            "1. Analyse la situation actuelle (Golds, XP, Items, KDA, Objectifs)."
-                            "2. Propose un plan d'action concret pour les 2 prochaines minutes."
-                            "3. Suggère les prochains items à acheter en fonction de la game."
-                            "4. Sois direct, impératif et concis."
-                            "5. Formatte ta réponse EXCLUSIVEMENT en HTML (sans balises ```html ou doctype).\n\n"
-                            "STRUCTURE DE RÉPONSE ATTENDUE:"
-                            "<h3>📊 Analyse Actuelle</h3>"
-                            "<ul><li>Point clé 1</li><li>Point clé 2</li></ul>"
-                            "<h3>⚡ Plan pour les 2 prochaines minutes</h3>"
-                            "<ul><li><strong>Action 1</strong>: Détail...</li><li><strong>Action 2</strong>: Détail...</li></ul>"
-                            "<h3>⚔️ Itemisation Recommandée</h3>"
-                            "<ul><li><strong>Achat Prioritaire</strong>: Nom de l'item (Pourquoi ?)</li></ul>"
-                        )
+                        # EARLY GAME STRATEGY (< 2 minutes)
+                        if game_time < 120:
+                            print("Generating Early Game Plan...", flush=True)
+                            prompt = (
+                                "Tu es un coach Challenger sur League of Legends. "
+                                "La partie vient de commencer. Donne un plan de jeu complet.\n\n"
+                                f"JOUEUR: {my_champion} (Moi) - Rôle: {my_position}\n"
+                                f"OPPOSANT DIRECT: {direct_opponent}\n"
+                                f"MON ÉQUIPE: {', '.join(my_team)}\n"
+                                f"ÉQUIPE ADVERSE: {', '.join(enemy_team)}\n"
+                                f"MODE DE JEU: {game_mode}\n\n"
+                                "INSTRUCTIONS:"
+                                "1. Donne un plan de jeu global pour la partie (Win Conditions)."
+                                "2. Donne les 6 items finaux à faire dans l'ordre idéal."
+                                "3. Donne des conseils spécifiques pour la phase de lane contre mon opposant direct.\n"
+                                "4. Formatte ta réponse EXCLUSIVEMENT en HTML (sans balises ```html ou doctype).\n\n"
+                                "STRUCTURE DE RÉPONSE ATTENDUE:"
+                                "<h3>🗺️ Plan de Jeu & Win Conditions</h3>"
+                                "<ul><li>Stratégie...</li></ul>"
+                                "<h3>⚔️ Matchup vs {direct_opponent}</h3>"
+                                "<ul><li>Conseil lane...</li></ul>"
+                                "<h3>📦 Build Final (6 Items)</h3>"
+                                "<ol><li>Item 1</li><li>Item 2</li>...</ol>"
+                            )
+                        
+                        # STANDARD ADVICE (> 2 minutes)
+                        else:
+                            print("Generating Tactical Advice...", flush=True)
+                            prompt = (
+                                "Tu es un coach Challenger sur League of Legends. "
+                                "Ton but est de donner un avantage tactique immédiat.\n\n"
+                                f"JOUEUR ACTUEL: {my_champion} (Moi)\n"
+                                f"MON ÉQUIPE: {', '.join(my_team)}\n"
+                                f"ÉQUIPE ADVERSE: {', '.join(enemy_team)}\n"
+                                f"MODE DE JEU: {game_mode}\n"
+                                f"CONTEXTE (Tes précédents conseils): {context_history}\n\n"
+                                f"DONNÉES ACTUELLES DE LA PARTIE: {json.dumps(clean_data)}\n\n"
+                                "INSTRUCTIONS:"
+                                "1. Analyse la situation actuelle (Golds, XP, Items, KDA, Objectifs)."
+                                "2. Propose un plan d'action concret pour les 2 prochaines minutes."
+                                "3. Suggère les prochains items à acheter en fonction de la game."
+                                "4. Sois direct, impératif et concis."
+                                "5. Formatte ta réponse EXCLUSIVEMENT en HTML (sans balises ```html ou doctype).\n\n"
+                                "STRUCTURE DE RÉPONSE ATTENDUE:"
+                                "<h3>📊 Analyse Actuelle</h3>"
+                                "<ul><li>Point clé 1</li><li>Point clé 2</li></ul>"
+                                "<h3>⚡ Plan pour les 2 prochaines minutes</h3>"
+                                "<ul><li><strong>Action 1</strong>: Détail...</li><li><strong>Action 2</strong>: Détail...</li></ul>"
+                                "<h3>⚔️ Itemisation Recommandée</h3>"
+                                "<ul><li><strong>Achat Prioritaire</strong>: Nom de l'item (Pourquoi ?)</li></ul>"
+                            )
                         
                         # Debug: Save prompt and game data to file
                         if debug_mode:
