@@ -4,6 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Nexus Analytics</title>
 
     <!-- Tailwind CSS -->
@@ -120,10 +123,22 @@
 
             <!-- Status Indicator -->
             <div class="flex justify-between items-center mb-6 border-b border-hextech-border/30 pb-4">
-                <span class="text-hextech-gold uppercase text-xs tracking-wider font-bold">Flux Neural</span>
-                <div class="flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                    <span class="text-xs text-green-400">Connecté</span>
+                <div class="flex flex-col">
+                    <span class="text-hextech-gold uppercase text-xs tracking-wider font-bold">Flux Neural</span>
+                    <span class="text-hextech-blue/50 text-[10px] uppercase tracking-widest mt-1">
+                        Dernière analyse : <span hx-get="/api/gametime" hx-trigger="load, every 5s"
+                            hx-swap="innerHTML">--:--</span>
+                    </span>
+                </div>
+                <div class="flex flex-col items-end">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                        <span class="text-xs text-green-400">Connecté</span>
+                    </div>
+                    <span class="text-[10px] text-hextech-blue/50 mt-1">
+                        Prochaine analyse : <span hx-get="/api/next-update" hx-trigger="load, every 1s"
+                            hx-swap="innerHTML">--s</span>
+                    </span>
                 </div>
             </div>
 
