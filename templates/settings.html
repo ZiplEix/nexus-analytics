@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Paramètres - Nexus Analytics</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Beaufort+for+LOL:wght@400;500;700&display=swap"
+        rel="stylesheet">
+
+    <!-- Custom Hextech Theme Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        hextech: {
+                            gold: '#C8AA6E',
+                            blue: '#0AC8B9',
+                            dark: '#091428',
+                            darker: '#0A0A0C',
+                            border: '#785A28'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Beaufort for LOL', 'Arial', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+
+        body {
+            background-color: #091428;
+            background-image: radial-gradient(circle at center, #0A323C 0%, #091428 100%);
+            color: #F0E6D2;
+            font-family: 'Roboto', sans-serif;
+        }
+
+        .hextech-border {
+            border: 2px solid #C8AA6E;
+            box-shadow: 0 0 15px rgba(200, 170, 110, 0.3);
+            position: relative;
+        }
+
+        .hextech-border::before {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: -5px;
+            right: -5px;
+            bottom: -5px;
+            border: 1px solid #0AC8B9;
+            pointer-events: none;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col items-center p-8 relative overflow-x-hidden">
+
+    <!-- Header -->
+    <header class="w-full max-w-3xl flex justify-between items-center mb-12 z-10 relative">
+        <div class="flex items-center gap-4">
+            <div
+                class="w-12 h-12 border border-hextech-gold rotate-45 flex items-center justify-center bg-hextech-dark">
+                <div class="w-8 h-8 bg-hextech-gold/20 -rotate-45"></div>
+            </div>
+            <div>
+                <h1
+                    class="text-3xl font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-hextech-gold to-yellow-200 drop-shadow-lg">
+                    NEXUS ANALYTICS
+                </h1>
+                <p class="text-hextech-blue tracking-widest text-sm uppercase opacity-80">Configuration Système</p>
+            </div>
+        </div>
+        <a href="/"
+            class="text-hextech-gold hover:text-white transition-colors uppercase text-sm tracking-widest border border-hextech-gold px-4 py-2 hover:bg-hextech-gold/10">
+            Retour
+        </a>
+    </header>
+
+    <!-- Main Content -->
+    <main class="w-full max-w-3xl z-10 relative">
+        <div class="hextech-border bg-[#091428]/90 backdrop-blur-sm p-8 rounded-sm">
+
+            <h2 class="text-2xl text-hextech-gold mb-8 border-b border-hextech-gold/30 pb-4 uppercase tracking-widest">
+                Paramètres de l'IA
+            </h2>
+
+            <form hx-post="/settings" hx-target="#feedback" class="space-y-8">
+
+                <!-- Model Selection -->
+                <div class="space-y-2">
+                    <label for="model" class="block text-hextech-blue uppercase tracking-wider text-sm font-bold">Modèle
+                        Gemini</label>
+                    <select name="model" id="model"
+                        class="w-full bg-[#010a13] border border-hextech-gold/50 text-hextech-gold p-3 focus:outline-none focus:border-hextech-gold focus:ring-1 focus:ring-hextech-gold transition-all">
+                        <option value="gemini-2.0-flash" {% if current_model=='gemini-2.0-flash' %}selected{% endif %}>
+                            Gemini 2.0 Flash (Recommandé)</option>
+                        <option value="gemini-2.5-pro" {% if current_model=='gemini-2.5-pro' %}selected{% endif %}>
+                            Gemini 2.5 Pro (Plus intelligent, plus lent)</option>
+                        <option value="gemini-1.5-pro" {% if current_model=='gemini-1.5-pro' %}selected{% endif %}>
+                            Gemini 1.5 Pro (Plus intelligent, plus lent)</option>
+                        <option value="gemini-1.5-flash" {% if current_model=='gemini-1.5-flash' %}selected{% endif %}>
+                            Gemini 1.5 Flash</option>
+                    </select>
+                    <p class="text-xs text-hextech-blue/60 mt-1">Le modèle utilisé pour générer les conseils et
+                        analyses.</p>
+                </div>
+
+                <!-- Debug Mode -->
+                <div class="flex items-center gap-4 border border-hextech-gold/30 p-4 bg-[#010a13]/50">
+                    <input type="checkbox" name="debug" id="debug"
+                        class="w-5 h-5 accent-hextech-gold bg-transparent border-hextech-gold" {% if debug_mode
+                        %}checked{% endif %}>
+                    <div>
+                        <label for="debug"
+                            class="block text-hextech-gold uppercase tracking-wider text-sm font-bold cursor-pointer">Mode
+                            Debug</label>
+                        <p class="text-xs text-hextech-blue/60">Sauvegarde les prompts et les réponses dans le dossier
+                            ./prompt</p>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="pt-4 flex items-center justify-between">
+                    <button type="submit"
+                        class="bg-gradient-to-r from-hextech-gold/80 to-yellow-600/80 text-white px-8 py-3 uppercase tracking-widest font-bold hover:brightness-110 transition-all border border-yellow-400 shadow-[0_0_15px_rgba(200,170,110,0.3)]">
+                        Sauvegarder
+                    </button>
+                    <div id="feedback" class="text-sm"></div>
+                </div>
+
+            </form>
+
+        </div>
+    </main>
+
+</body>
+
+</html>
